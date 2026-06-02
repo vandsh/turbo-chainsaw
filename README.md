@@ -79,6 +79,20 @@ dotnet run
 
 The app serves on the URLs configured in `Properties/launchSettings.json`. Open the root URL to use the SPA, or `/swagger` for the API docs.
 
+## Tests
+
+Unit tests live in `Tests/` and target the most critical business logic — path security and input validation — rather than aiming for broad coverage.
+
+```bash
+dotnet test
+```
+
+| Area | What's covered |
+|------|---------------|
+| `ResolveSafePath` | Null/empty input, valid subpaths, `../` traversal attacks (4 variants), null byte injection, safe relative `../` within root |
+| `IsValidFileName` | Valid names, empty/whitespace, path separators, null bytes, 255-char boundary |
+| Configuration | `RootPath` and `DefaultPageSize` read correctly from config |
+
 ## Future Considerations
 
 - **Request and query caching** — Add response caching (e.g. `ETag`/`If-None-Match`, in-memory cache for directory listings) to reduce redundant filesystem I/O and improve performance under load
