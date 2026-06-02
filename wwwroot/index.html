@@ -1,10 +1,87 @@
 ﻿<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>File Browser</title>
+    <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-    Hello World!
+    <div class="app">
+        <header>
+            <h1>File Browser</h1>
+            <div class="api-key-group">
+                <input type="password" id="api-key-input" placeholder="API Key" autocomplete="off" />
+                <button id="api-key-save">Save</button>
+            </div>
+        </header>
+
+        <div class="breadcrumb-row">
+            <nav id="breadcrumb" class="breadcrumb"></nav>
+            <span id="dir-stats" class="dir-stats"></span>
+        </div>
+
+        <div class="toolbar">
+            <input type="text" id="search-input" placeholder="Filter by name" />
+            <select id="sort-select" class="btn">
+                <option value="">Sort: Name ↑</option>
+                <option value="name desc">Sort: Name ↓</option>
+                <option value="size asc">Sort: Size ↑</option>
+                <option value="size desc">Sort: Size ↓</option>
+                <option value="modified asc">Sort: Date ↑</option>
+                <option value="modified desc">Sort: Date ↓</option>
+            </select>
+            <button class="btn" id="upload-btn">↑ Upload</button>
+            <input type="file" id="upload-input" multiple hidden />
+        </div>
+
+        <div id="file-list" class="file-list"></div>
+
+        <div id="pager" class="pager"></div>
+
+        <div id="dropzone" class="dropzone">
+            Drop files here to upload
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <!-- Share Dialog -->
+    <div id="share-modal" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Share Link</h3>
+                <button id="share-close" class="btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label>Direct Link</label>
+                <div class="input-group">
+                    <input type="text" id="share-direct-link" readonly />
+                    <button id="copy-direct-link" class="btn">Copy</button>
+                </div>
+
+                <div id="share-expiring-section">
+                    <label>Expiring Link</label>
+                    <div class="input-group">
+                        <select id="share-expiry-select" class="btn">
+                            <option value="15">15 min</option>
+                            <option value="60" selected>1 hour</option>
+                            <option value="1440">1 day</option>
+                            <option value="10080">7 days</option>
+                            <option value="43200">30 days</option>
+                        </select>
+                        <button id="share-generate-btn" class="btn">Generate</button>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="share-expiring-link" readonly />
+                        <button id="copy-expiring-link" class="btn">Copy</button>
+                    </div>
+                    <div id="share-expires-at" class="share-meta"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
 </body>
 </html>
