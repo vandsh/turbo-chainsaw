@@ -100,3 +100,5 @@ dotnet test
 - **In-page file preview** — Render common file types directly in the browser (text, markdown, images, PDF) instead of requiring a download
 - **Multi-tenant API keys** — Map API keys to isolated root directories, enabling per-tenant access control where each key scopes browsing to its own folder hierarchy
 - **Directory Operations** — Allow for creating a new folder. Right now renames, moves and deletes are supported. 
+- **Large File Operations** - Large file/long upload times leave gap between check and write completion, could be conflicts. Consider alternative naming structure with a md5 hash suffix as a quick fix (ie: `filename.md5.ext`). This could effectively provide a very loose level of versioning too when ordered by modified date.
+- **Large Directory Operations** - As in folders with massive amounts of files, `Directory.Get*`, NTFS, drive IO becomes a concern. To perform better at scale, something more... blob-esq would be a better fit, metadata stored in a db/datastore with pointer(s) to chunked content across multiple drives (sharding/partitioning for massive files).
