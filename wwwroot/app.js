@@ -32,6 +32,14 @@
     const dirStatsEl = document.getElementById('dir-stats');
     const sortSelect = document.getElementById('sort-select');
 
+    // --- Templates ---
+    const fileItemTmpl = document.getElementById('file-item-tmpl');
+    const breadcrumbLinkTmpl = document.getElementById('breadcrumb-link-tmpl');
+    const breadcrumbSepTmpl = document.getElementById('breadcrumb-sep-tmpl');
+    const pagerBtnTmpl = document.getElementById('pager-btn-tmpl');
+    const pagerInfoTmpl = document.getElementById('pager-info-tmpl');
+    const pagerSizeTmpl = document.getElementById('pager-size-tmpl');
+
     // --- API Key ---
     function getApiKey() {
         return localStorage.getItem('apiKey') || '';
@@ -128,7 +136,11 @@
             totalSize = data.totalSize;
             render();
         } catch (err) {
-            fileListEl.innerHTML = `<div class="empty">Error: ${escapeHtml(err.message)}</div>`;
+            const errDiv = document.createElement('div');
+            errDiv.className = 'empty';
+            errDiv.textContent = `Error: ${err.message}`;
+            fileListEl.innerHTML = '';
+            fileListEl.appendChild(errDiv);
         }
     }
 
@@ -151,19 +163,27 @@
 
     function renderBreadcrumb() {
         const parts = currentPath ? currentPath.split('/') : [];
-        let html = `<a data-path="">root</a>`;
+        breadcrumbEl.innerHTML = '';
+
+        const rootLink = breadcrumbLinkTmpl.content.cloneNode(true).querySelector('a');
+        rootLink.textContent = 'root';
+        rootLink.dataset.path = '';
+        rootLink.addEventListener('click', (e) => { e.preventDefault(); navigate(''); });
+        breadcrumbEl.appendChild(rootLink);
+
         let accumulated = '';
         for (const part of parts) {
             accumulated += (accumulated ? '/' : '') + part;
-            html += `<span class="sep">/</span><a data-path="${escapeAttr(accumulated)}">${escapeHtml(part)}</a>`;
+            const sep = breadcrumbSepTmpl.content.cloneNode(true);
+            breadcrumbEl.appendChild(sep);
+
+            const link = breadcrumbLinkTmpl.content.cloneNode(true).querySelector('a');
+            link.textContent = part;
+            link.dataset.path = accumulated;
+            const navPath = accumulated;
+            link.addEventListener('click', (e) => { e.preventDefault(); navigate(navPath); });
+            breadcrumbEl.appendChild(link);
         }
-        breadcrumbEl.innerHTML = html;
-        breadcrumbEl.querySelectorAll('a').forEach(a => {
-            a.addEventListener('click', (e) => {
-                e.preventDefault();
-                navigate(a.dataset.path);
-            });
-        });
     }
 
     function renderFileList(items) {
@@ -172,84 +192,73 @@
             return;
         }
 
-        let html = '';
+        fileListEl.innerHTML = '';
+
         for (const entry of items) {
             const e = { name: entry.name, isDirectory: entry.isDirectory, size: entry.size, lastModified: entry.lastModified };
-            const icon = e.isDirectory ? '📁' : '📄';
-            const size = e.isDirectory ? '' : formatSize(e.size);
-            const modified = formatDate(e.lastModified);
             const entryPath = currentPath ? `${currentPath}/${e.name}` : e.name;
 
-            html += `
-                <div class="file-item" data-path="${escapeAttr(entryPath)}" data-is-dir="${e.isDirectory}" data-name="${escapeAttr(e.name)}">
-                    <div class="name">
-                        <span class="icon">${icon}</span>
-                        <span>${escapeHtml(e.name)}</span>
-                    </div>
-                    <div class="meta">${size ? size + ' · ' : ''}${modified}</div>
-                    <div class="actions">
-                        <button class="share-btn" title="Share">🔗</button>
-                        ${!e.isDirectory ? `<button class="dl-btn" title="Download">\u2193</button>` : ''}
-                        <button class="rename-btn" title="Rename">✎</button>                        <button class="move-btn" title="Move">✂</button>
-                        ${!e.isDirectory ? `<button class="copy-btn" title="Copy">📋</button>` : ''}
-                        <button class="delete-btn" title="Delete">🗑</button>                    </div>
-                </div>`;
-        }
+            const frag = fileItemTmpl.content.cloneNode(true);
+            const el = frag.querySelector('.file-item');
+            el.dataset.path = entryPath;
+            el.dataset.isDir = e.isDirectory;
+            el.dataset.name = e.name;
 
-        fileListEl.innerHTML = html;
+            el.querySelector('.icon').textContent = e.isDirectory ? '📁' : '📄';
+            el.querySelector('.label').textContent = e.name;
 
-        // Event listeners
-        fileListEl.querySelectorAll('.file-item').forEach(el => {
-            el.addEventListener('click', (e) => {
-                if (e.target.closest('.actions')) return;
-                const isDir = el.dataset.isDir === 'true';
-                if (isDir) {
-                    navigate(el.dataset.path);
+            const size = e.isDirectory ? '' : formatSize(e.size);
+            const modified = formatDate(e.lastModified);
+            el.querySelector('.meta').textContent = size ? `${size} · ${modified}` : modified;
+
+            // Hide file-only buttons for directories
+            if (e.isDirectory) {
+                el.querySelector('.dl-btn').remove();
+                el.querySelector('.copy-btn').remove();
+            }
+
+            // Event listeners
+            el.addEventListener('click', (ev) => {
+                if (ev.target.closest('.actions')) return;
+                if (e.isDirectory) {
+                    navigate(entryPath);
                 } else {
-                    downloadFile(el.dataset.path);
+                    downloadFile(entryPath);
                 }
             });
 
             const dlBtn = el.querySelector('.dl-btn');
             if (dlBtn) {
-                dlBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    downloadFile(el.dataset.path);
-                });
+                dlBtn.addEventListener('click', (ev) => { ev.stopPropagation(); downloadFile(entryPath); });
             }
 
-            const renameBtn = el.querySelector('.rename-btn');
-            renameBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
+            el.querySelector('.share-btn').addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                openShareDialog(entryPath, e.isDirectory);
+            });
+
+            el.querySelector('.rename-btn').addEventListener('click', (ev) => {
+                ev.stopPropagation();
                 startRename(el);
             });
 
-            const shareBtn = el.querySelector('.share-btn');
-            shareBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openShareDialog(el.dataset.path, el.dataset.isDir === 'true');
-            });
-
-            const deleteBtn = el.querySelector('.delete-btn');
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                deleteItem(el.dataset.path, el.dataset.name);
-            });
-
-            const moveBtn = el.querySelector('.move-btn');
-            moveBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                moveItem(el.dataset.path, el.dataset.name);
+            el.querySelector('.move-btn').addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                moveItem(entryPath, e.name);
             });
 
             const copyBtn = el.querySelector('.copy-btn');
             if (copyBtn) {
-                copyBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    copyItem(el.dataset.path, el.dataset.name);
-                });
+                copyBtn.addEventListener('click', (ev) => { ev.stopPropagation(); copyItem(entryPath, e.name); });
             }
-        });
+
+            el.querySelector('.delete-btn').addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                deleteItem(entryPath, e.name);
+            });
+
+            fileListEl.appendChild(el);
+        }
     }
 
     // --- Download ---
@@ -492,15 +501,7 @@
         return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
-    function escapeHtml(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
-    }
 
-    function escapeAttr(str) {
-        return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
 
     function showToast(message, isError) {
         const toast = document.createElement('div');
@@ -519,49 +520,70 @@
 
     function renderPager() {
         const pagerEl = document.getElementById('pager');
+        pagerEl.innerHTML = '';
+
         if (totalPages <= 1) {
-            pagerEl.innerHTML = filteredCount > 0 && filteredCount < totalCount
-                ? `<span class="pager-info">${filteredCount} of ${totalCount} result${totalCount !== 1 ? 's' : ''}</span>` : '';
+            if (filteredCount > 0 && filteredCount < totalCount) {
+                const info = pagerInfoTmpl.content.cloneNode(true).querySelector('.pager-info');
+                info.textContent = `${filteredCount} of ${totalCount} result${totalCount !== 1 ? 's' : ''}`;
+                pagerEl.appendChild(info);
+            }
             return;
         }
 
-        let html = `<span class="pager-info">${filteredCount} result${filteredCount !== 1 ? 's' : ''} \u00b7 page ${currentPage} of ${totalPages}</span>`;
-        html += `\n<button class="btn" data-page="1" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        const info = pagerInfoTmpl.content.cloneNode(true).querySelector('.pager-info');
+        info.textContent = `${filteredCount} result${filteredCount !== 1 ? 's' : ''} \u00b7 page ${currentPage} of ${totalPages}`;
+        pagerEl.appendChild(info);
 
-        html += `<button class="btn" data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''}>&lsaquo;</button>`;
+        function addPageBtn(label, page, disabled) {
+            const btn = pagerBtnTmpl.content.cloneNode(true).querySelector('button');
+            btn.innerHTML = label;
+            btn.dataset.page = page;
+            btn.disabled = disabled;
+            if (!disabled) {
+                btn.addEventListener('click', () => {
+                    currentPage = page;
+                    loadDirectory();
+                });
+            }
+            pagerEl.appendChild(btn);
+        }
+
+        addPageBtn('&laquo;', 1, currentPage === 1);
+        addPageBtn('&lsaquo;', currentPage - 1, currentPage === 1);
 
         const range = getPagerRange(currentPage, totalPages, 5);
         for (let i = range.start; i <= range.end; i++) {
-            html += `<button class="btn ${i === currentPage ? 'btn-primary' : ''}" data-page="${i}">${i}</button>`;
-        }
-
-        html += `<button class="btn" data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''}>&rsaquo;</button>`;
-        html += `<button class="btn" data-page="${totalPages}" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
-
-        html += `<select id="page-size-select" class="btn">`;
-        for (const s of [25, 50, 100, 200]) {
-            html += `<option value="${s}" ${s === pageSize ? 'selected' : ''}>${s} / page</option>`;
-        }
-        html += `</select>`;
-
-        pagerEl.innerHTML = html;
-
-        pagerEl.querySelectorAll('button[data-page]').forEach(btn => {
+            const btn = pagerBtnTmpl.content.cloneNode(true).querySelector('button');
+            btn.textContent = i;
+            btn.dataset.page = i;
+            if (i === currentPage) btn.classList.add('btn-primary');
             btn.addEventListener('click', () => {
-                const p = parseInt(btn.dataset.page);
-                if (p >= 1 && p <= totalPages && p !== currentPage) {
-                    currentPage = p;
-                    loadDirectory();
-                }
+                currentPage = i;
+                loadDirectory();
             });
-        });
+            pagerEl.appendChild(btn);
+        }
 
-        document.getElementById('page-size-select').addEventListener('change', (e) => {
+        addPageBtn('&rsaquo;', currentPage + 1, currentPage === totalPages);
+        addPageBtn('&raquo;', totalPages, currentPage === totalPages);
+
+        const selectFrag = pagerSizeTmpl.content.cloneNode(true);
+        const select = selectFrag.querySelector('select');
+        for (const s of [25, 50, 100, 200]) {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = `${s} / page`;
+            opt.selected = s === pageSize;
+            select.appendChild(opt);
+        }
+        select.addEventListener('change', (e) => {
             pageSize = parseInt(e.target.value);
             localStorage.setItem('pageSize', pageSize);
             currentPage = 1;
             loadDirectory();
         });
+        pagerEl.appendChild(select);
     }
 
     function getPagerRange(current, total, maxButtons) {
