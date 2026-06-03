@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using TestProject.Models;
 
 namespace TestProject.Filters;
 
@@ -37,12 +38,11 @@ public class ApiExceptionFilter : IExceptionFilter
             _ => (HttpStatusCode.InternalServerError, "An unexpected error occurred.")
         };
 
-        var response = new
+        var response = new ApiErrorResponse
         {
-            error = true,
-            status = (int)statusCode,
-            message,
-            detail = _env.IsDevelopment() ? context.Exception.ToString() : null
+            Status = (int)statusCode,
+            Message = message,
+            Detail = _env.IsDevelopment() ? context.Exception.ToString() : null
         };
 
         context.Result = new ObjectResult(response) { StatusCode = (int)statusCode };

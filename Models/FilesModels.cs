@@ -70,3 +70,10 @@ public record CopyResponse {
     public string Name { get; init; } = "";
     public string NewPath { get; init; } = "";
 }
+
+public record ApiErrorResponse {
+    public bool Error { get; init; } = true;
+    public int Status { get; init; }
+    public string Message { get; init; } = "";
+    public string? Detail { get; init; }
+}
