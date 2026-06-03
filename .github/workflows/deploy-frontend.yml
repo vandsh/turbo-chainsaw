@@ -1,16 +1,8 @@
 name: Deploy Frontend to Azure Static Web Apps
+# DISABLED — frontend is served by the Container App SPA fallback
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'wwwroot/**'
-      - '.github/workflows/deploy-frontend.yml'
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-    branches: [main]
-    paths:
-      - 'wwwroot/**'
+  workflow_dispatch:
 
 env:
   SWA_NAME: 'turbo-chainsaw-spa'
