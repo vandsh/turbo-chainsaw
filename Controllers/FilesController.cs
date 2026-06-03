@@ -257,7 +257,9 @@ public class FilesController : ControllerBase {
         if (Directory.Exists(resolved)) {
             wasDirectory = true;
             name = new DirectoryInfo(resolved).Name;
-            Directory.Delete(resolved, false); // non-recursive, empty dirs only
+            if (Directory.EnumerateFileSystemEntries(resolved).Any())
+                return Conflict($"Directory \"{name}\" is not empty. Delete its contents first.");
+            Directory.Delete(resolved, false);
         } else if (System.IO.File.Exists(resolved)) {
             wasDirectory = false;
             name = Path.GetFileName(resolved);

@@ -26,7 +26,6 @@
     const uploadBtn = document.getElementById('upload-btn');
     const uploadInput = document.getElementById('upload-input');
     const dropzone = document.getElementById('dropzone');
-    const toastEl = document.getElementById('toast');
     const apiKeyInput = document.getElementById('api-key-input');
     const apiKeySaveBtn = document.getElementById('api-key-save');
     const dirStatsEl = document.getElementById('dir-stats');
@@ -79,12 +78,16 @@
     }
 
     // --- Toast Alert ---
-    let toastTimer;
-    function toast(msg) {
-        toastEl.textContent = msg;
-        toastEl.classList.add('show');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2500);
+    function toast(msg, isError) {
+        const el = document.createElement('div');
+        el.className = 'toast' + (isError ? ' toast-error' : '');
+        el.textContent = msg;
+        document.body.appendChild(el);
+        requestAnimationFrame(() => el.classList.add('show'));
+        setTimeout(() => {
+            el.classList.remove('show');
+            setTimeout(() => el.remove(), 300);
+        }, 3000);
     }
 
     // --- Router ---
@@ -276,18 +279,13 @@
     async function deleteItem(path, name) {
         if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
         try {
-            const res = await fetch(`${API_BASE}/delete?path=${encodeURIComponent(path)}`, {
-                method: 'DELETE',
-                headers: { 'X-Api-Key': getApiKey() }
+            await apiFetch(`${API_BASE}/delete?path=${encodeURIComponent(path)}`, {
+                method: 'DELETE'
             });
-            if (!res.ok) {
-                const msg = await res.text();
-                throw new Error(msg || res.statusText);
-            }
-            showToast(`Deleted "${name}"`);
+            toast(`Deleted "${name}"`);
             loadDirectory();
         } catch (err) {
-            showToast(`Delete failed: ${err.message}`, true);
+            toast(`Delete failed: ${err.message}`, true);
         }
     }
 
@@ -296,20 +294,16 @@
         const dest = prompt(`Move "${name}" to directory (relative path):`, currentPath);
         if (dest === null) return;
         try {
-            const res = await fetch(`${API_BASE}/move`, {
+            const res = await apiFetch(`${API_BASE}/move`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Api-Key': getApiKey() },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, destination: dest })
             });
-            if (!res.ok) {
-                const msg = await res.text();
-                throw new Error(msg || res.statusText);
-            }
             const data = await res.json();
-            showToast(`Moved "${name}" → ${data.newPath}`);
+            toast(`Moved "${name}" → ${data.newPath}`);
             loadDirectory();
         } catch (err) {
-            showToast(`Move failed: ${err.message}`, true);
+            toast(`Move failed: ${err.message}`, true);
         }
     }
 
@@ -318,20 +312,16 @@
         const dest = prompt(`Copy "${name}" to directory (relative path):`, currentPath);
         if (dest === null) return;
         try {
-            const res = await fetch(`${API_BASE}/copy`, {
+            const res = await apiFetch(`${API_BASE}/copy`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Api-Key': getApiKey() },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, destination: dest })
             });
-            if (!res.ok) {
-                const msg = await res.text();
-                throw new Error(msg || res.statusText);
-            }
             const data = await res.json();
-            showToast(`Copied "${name}" → ${data.newPath}`);
+            toast(`Copied "${name}" → ${data.newPath}`);
             loadDirectory();
         } catch (err) {
-            showToast(`Copy failed: ${err.message}`, true);
+            toast(`Copy failed: ${err.message}`, true);
         }
     }
 
@@ -501,19 +491,6 @@
         return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
-
-
-    function showToast(message, isError) {
-        const toast = document.createElement('div');
-        toast.className = 'toast' + (isError ? ' toast-error' : '');
-        toast.textContent = message;
-        document.body.appendChild(toast);
-        requestAnimationFrame(() => toast.classList.add('show'));
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
 
     // --- Init ---
     pageSize = parseInt(localStorage.getItem('pageSize')) || 50;
